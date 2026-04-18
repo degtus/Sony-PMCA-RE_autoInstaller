@@ -1,84 +1,106 @@
-# Reverse Engineering Sony Digital Cameras
-This tool interfaces with Sony digital cameras through USB. It allows to tweak settings, dump firmware, and in some cases install custom Android apps.
+# Sony-PMCA-RE autoInstaller
 
-## Installation
-There are two binaries:
+This repository is a public personal fork of [ma1co/Sony-PMCA-RE](https://github.com/ma1co/Sony-PMCA-RE).
 
-* **pmca-console**: The main command line application
-* **pmca-gui**: A graphical user interface with a limited set of features
+## Status
 
-### Windows
-The application should work fine on Windows using the operating system's mass storage and MTP USB drivers.
+This fork is not under active development.
 
-Download the [latest stable release](https://github.com/ma1co/Sony-PMCA-RE/releases/latest) or the newest [development build](https://ci.appveyor.com/project/ma1co/sony-pmca-re/build/artifacts).
+There is no roadmap here.
+There is no promise of future fixes, packaged releases, or issue support.
+If something happens to work for your camera or machine, treat that as best-effort maintenance, not an actively supported product.
 
-### macOS
-macOS binaries are also distributed, but less tested than the Windows equivalents. Getting the USB drivers to work may require some fiddling. To communicate with cameras in mass storage mode, Sony's [Camera Driver](https://support.d-imaging.sony.co.jp/mac/driver/11/ja/) has to be installed. Make sure to close all applications which could access USB drivers, including Photos, Dropbox and Google Drive.
+It exists mainly as a convenience fork for:
 
-The latest release binaries can be found in the [release section](https://github.com/ma1co/Sony-PMCA-RE/releases/latest).
+* running the project from source on current Linux/macOS systems
+* carrying a few small maintenance fixes that are useful locally
+* keeping a simpler public landing page than the original upstream repository state
 
-### Linux
-The application uses Python 3 and should work fine on Linux using libusb drivers.
+Do not expect regular releases, packaged binaries, or fast upstream sync.
 
-Clone or download this repository, then run the following commands:
+## What Is Different In This Fork
+
+* fork-facing README instead of the original upstream landing page
+* `scripts/bootstrap-ubuntu.sh` for preparing the current checkout on Ubuntu/Debian
+* a small macOS driver fallback fix from upstream PR `#698`
+* a small Python warning cleanup from upstream PR `#651`
+* the JP camera language safety tweak from upstream PR `#356`
+* removal of old Travis/AppVeyor CI config that no longer matches the current fork
+
+## Quick Start
+
+### Ubuntu / Debian
+
+Clone the fork, enter the checkout, then run:
+
 ```bash
-pip install -r requirements.txt  # to install the dependencies
-./pmca-console.py  # for the command line application
-./pmca-gui.py  # for the gui application
+./scripts/bootstrap-ubuntu.sh
+sudo .venv/bin/python pmca-console.py serviceshell
 ```
 
-## Usage
-There are three main modes of interfacing with a camera:
+### macOS
 
-### App Installer
-If the camera supports *PlayMemories Camera Apps (PMCA)*, it is possible to install custom Android apps using this tool. A list of supported cameras can be found [here](https://openmemories.readthedocs.io/devices.html).
+This fork is source-first on macOS. A minimal setup looks like this:
 
-It is recommended to install the [*OpenMemories: Tweak*](https://github.com/ma1co/OpenMemories-Tweak) app. This app allows to tweak settings and to start *telnet* and *adb* servers to execute code on the system.
+```bash
+brew install libusb
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+python pmca-console.py -h
+```
 
-Other apps are available. A list can be found [here](https://github.com/ma1co/OpenMemories-AppList).
+Notes:
 
-There are two ways to install apps:
-* **pmca-gui**: In the *Install app* tab, select an app from the list and click *Install selected app*.
-* **pmca-console**: Run `pmca-console install -i` to interactively select an app to install.
+* Apple Silicon is not the main blocker here; old USB/driver behavior is.
+* This fork loads `libusb` alongside the native Sony path on macOS when the default driver is used.
+* For USB communication on macOS, having `libusb` installed is important.
 
-### Firmware Updater
-Sony cameras can boot from a secondary partition for firmware updates. Using a custom firmware file, we can execute code in this mode. Note that the camera firmware itself remains untouched. The firmware update process is only used to execute custom code.
+### Plain Source Setup
 
-This mode does not require any special drivers, the operating system's mass storage USB driver is enough.
+If you do not want the helper script:
 
-A list of supported camera models can be found [here](https://openmemories.readthedocs.io/devices.html). Devices based on the CXD90045 and CXD90057 architectures are not compatible, since their firmware is cryptographically signed.
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+python pmca-console.py -h
+```
 
-There are two ways to use this:
-* **pmca-gui**: In the *Tweaks* tab, click *Start tweaking (updater mode)*. You can then use the checkboxes to configure your camera's settings.
-* **pmca-console**: Run `pmca-console updatershell`. There are commands available to dump the firmware, execute Linux commands, and to tweak settings.
+## Typical Commands
 
-Note that this requires rebooting the camera to firmware update mode. You will be guided through this process.
+* `python pmca-console.py info`
+* `python pmca-console.py install -i`
+* `python pmca-console.py updatershell`
+* `python pmca-console.py serviceshell`
 
-### Service Mode
-Sony cameras have a USB mode called *senser mode*, which is used during servicing for calibration and other things. It can also be used to execute code on the running system.
+The GUI is still present as `pmca-gui.py`, but this fork is mainly aimed at source-based console usage.
 
-Service mode has the best camera compatibility, but requires custom USB drivers.
+## Submodules And Old Build Paths
 
-It is currently only supported in the command line application:
-* **pmca-console**: Run `pmca-console serviceshell`. There are commands available to dump the firmware and to execute Linux commands.
+For `pmca-console.py` and `serviceshell`, a normal clone is enough.
 
-#### Windows Drivers
-To use service mode on Windows, custom drivers have to be installed using [Zadig](http://zadig.akeo.ie/):
-* Make sure the camera is connected in mass storage mode.
-* In Zadig, check *Options -> List All Devices*, select the camera, select *libusb-win32* and click *Replace Driver*.
-* Run `pmca-console serviceshell` to make the camera switch modes.
-* Once the camera has switched, repeat the above step to install a driver for service mode.
-* You should now be able to use `pmca-console serviceshell`.
+Recursive submodules are only relevant if you want to rebuild older `updatershell` components. That area still contains historical toolchain baggage, and some nested submodule URLs upstream are stale.
 
-To be able to use the camera normally again, the libusb drivers have to be uninstalled in device manager.
+## Important Limitations
 
-## Is it safe?
-This is an experiment in a very early stage. All information has been found through reverse engineering. Even though everything worked fine for our developers, it could cause harm to your hardware. If you break your camera, you get to keep both pieces. **We won't take any responsibility.**
+* This code still talks to cameras through old reverse-engineered USB paths.
+* It can break on modern operating systems, modern Python versions, or particular camera models.
+* This fork does not maintain packaged releases.
+* This fork should not be read as a commitment to support future Sony bodies, new firmware, or platform compatibility work.
+* Bug reports or feature requests may simply remain unanswered.
+* Use it at your own risk. If something goes wrong with the camera, that risk is on you.
 
-## What about custom apps?
-It is possible to develop custom Android apps for supported cameras. Keep in mind that they should be compatible with Android 2.3.7. Debug and release certificates are accepted by the camera. See [*PMCADemo*](https://github.com/ma1co/PMCADemo) for a demo app.
+## Upstream Project
 
-There are a few special Sony APIs which allow you to take advantage of the features of your camera. They can be used through [*OpenMemories: Framework*](https://github.com/ma1co/OpenMemories-Framework).
+The original project and broader documentation live here:
 
-## Special thanks
-Without the work done by the people at [nex-hack](http://www.personal-view.com/faqs/sony-hack/hack-development), this wouldn't have been possible. Thanks a lot!
+* Upstream repository: [ma1co/Sony-PMCA-RE](https://github.com/ma1co/Sony-PMCA-RE)
+* Camera compatibility docs: [openmemories.readthedocs.io](https://openmemories.readthedocs.io/devices.html)
+* App installation notes: [docs/AppInstallation.md](docs/AppInstallation.md)
+
+## Special Thanks
+
+Without the work done by the people at [nex-hack](http://www.personal-view.com/faqs/sony-hack/hack-development), this would not have been possible.
